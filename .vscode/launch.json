@@ -1,0 +1,9 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {"name": "1. Prepare dataset", "type": "debugpy", "request": "launch", "program": "${workspaceFolder}/scripts/prepare_dataset.py", "console": "integratedTerminal", "cwd": "${workspaceFolder}"},
+    {"name": "2. Train CNN-LSTM", "type": "debugpy", "request": "launch", "program": "${workspaceFolder}/scripts/train.py", "console": "integratedTerminal", "cwd": "${workspaceFolder}"},
+    {"name": "3. Replay demo + dashboard", "type": "debugpy", "request": "launch", "program": "${workspaceFolder}/run.py", "args": ["replay"], "console": "integratedTerminal", "cwd": "${workspaceFolder}"},
+    {"name": "Dashboard only", "type": "debugpy", "request": "launch", "program": "${workspaceFolder}/run.py", "args": ["dashboard"], "console": "integratedTerminal", "cwd": "${workspaceFolder}"}
+  ]
+}

@@ -1,0 +1,20 @@
+# OPTIONAL: full interactive SSH/Telnet honeypot (Cowrie) instead of the built-in SSH decoy.
+#   sudo apt install -y docker.io docker-compose-v2
+#   mkdir -p deploy/cowrie-logs && sudo chown 999:999 deploy/cowrie-logs   # cowrie runs as uid 999
+#   sudo docker compose -f deploy/cowrie-docker-compose.yml up -d
+# Then start NDACS with Cowrie integration:
+#   sudo NDACS_COWRIE_JSON_LOG=$PWD/deploy/cowrie-logs/cowrie.json venv/bin/python run.py live --iface enp0s3
+# Cowrie runs isolated in a container (no access to the host network stack or files).
+services:
+  cowrie:
+    image: cowrie/cowrie:latest
+    container_name: ndacs-cowrie
+    restart: unless-stopped
+    ports:
+      - "2222:2222"     # SSH honeypot  (NDACS redirects attacker port 22 -> 2222)
+      - "2223:2223"     # Telnet honeypot
+    volumes:
+      - ./cowrie-logs:/cowrie/cowrie-git/var/log/cowrie
+    read_only: false
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

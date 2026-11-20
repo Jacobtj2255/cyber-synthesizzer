@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NDACS · Security Console</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script>window.CSRF = "{{ csrf }}";</script>
+</head><body>
+<div class="layout">
+<aside>
+  <div class="brand"><div class="logo">ND</div><div><b>NDACS</b><small>Cyber Defense Console</small></div></div>
+  <nav>
+    <button data-view="overview" class="active">◉ Overview</button>
+    <button data-view="traffic">⇄ Live Traffic</button>
+    <button data-view="alerts">⚠ Alerts <span class="badge" id="nav-alerts" hidden>0</span></button>
+    <button data-view="response">⛨ Automated Response</button>
+    <button data-view="honeypot">◎ Honeypot</button>
+    <button data-view="model">✦ AI Model</button>
+  </nav>
+  <div class="foot">Signed in as <b>{{ user }}</b> · <a href="/logout">Log out</a><br>SSET · Dept. of CSE</div>
+</aside>
+
+<main>
+  <header class="top">
+    <h1 id="title">Overview</h1>
+    <span class="pill live"><span class="dot"></span>Mode <b id="st-mode">–</b></span>
+    <span class="pill">Model <b id="st-model">–</b></span>
+    <span class="pill">XAI <b id="st-xai">–</b></span>
+    <span class="pill">Response <b id="st-resp">–</b></span>
+    <span class="pill">DB <b id="st-db">–</b></span>
+    <span class="pill">Uptime <b id="st-up">–</b></span>
+  </header>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="view active" id="v-overview">
+    <div id="warn-nomodel" class="warnbox" hidden>No trained model loaded – detection is running on behaviour/signature rules only. Run <code>scripts/train.py</code>.</div>
+    <div id="warn-synth" class="warnbox" hidden>The loaded model was trained on SYNTHETIC test data. Retrain on CICIDS2017 before reporting results.</div>
+    <div class="grid kpis">
+      <div class="card kpi"><div class="v" id="k-flows">0</div><div class="l">Flows analysed</div></div>
+      <div class="card kpi bad"><div class="v" id="k-mal">0</div><div class="l">Malicious flows</div></div>
+      <div class="card kpi warn"><div class="v" id="k-alerts">0</div><div class="l">Alerts raised</div></div>
+      <div class="card kpi ok"><div class="v" id="k-blocked">0</div><div class="l">Attackers contained</div></div>
+      <div class="card kpi vio"><div class="v" id="k-hp">0</div><div class="l">Honeypot events</div></div>
+    </div>
+    <div class="grid two" style="margin-top:14px">
+      <div class="card"><h3>Traffic timeline · last 30 min</h3><div class="chart-box"><canvas id="c-timeline"></canvas></div></div>
+      <div class="card"><h3>Attack types</h3><div class="chart-box"><canvas id="c-dist"></canvas></div></div>
+    </div>
+    <div class="grid two" style="margin-top:14px">
+      <div class="card"><h3>Latest alerts</h3><table><thead><tr><th>Time</th><th>Source</th><th>Attack</th><th>Severity</th><th>Conf.</th><th>Action</th></tr></thead><tbody id="t-latest"></tbody></table></div>
+      <div class="card"><h3>Top attackers</h3><div class="list" id="l-top"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ TRAFFIC ============ -->
+  <section class="view" id="v-traffic">
+    <div class="card"><h3>Real-time flow classification <span class="muted" id="traffic-meta" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h3>
+      <div class="scroll"><table><thead><tr><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th>Pkts</th><th>Bytes</th><th>CNN-LSTM verdict</th><th>Confidence</th></tr></thead><tbody id="t-feed"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ============ ALERTS ============ -->
+  <section class="view" id="v-alerts">
+    <div class="card">
+      <div class="toolbar">
+        <select id="f-label"><option value="">All attack types</option></select>
+        <select id="f-sev"><option value="">All severities</option><option>critical</option><option>high</option><option>medium</option></select>
+        <span class="muted">Click an alert to see the Explainable-AI reasoning.</span>
+      </div>
+      <div class="scroll"><table><thead><tr><th>#</th><th>First seen</th><th>Source IP</th><th>Target</th><th>Attack</th><th>Severity</th><th>Confidence</th><th>Detected by</th><th>Hits</th><th>Action</th></tr></thead><tbody id="t-alerts"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ============ RESPONSE ============ -->
+  <section class="view" id="v-response">
+    <div class="card" style="margin-bottom:14px">
+      <h3>Manual action</h3>
+      <div class="toolbar">
+        <input id="m-ip" placeholder="IP address e.g. 192.168.56.20">
+        <select id="m-mode"><option value="block">Block (DROP)</option><option value="redirect">Redirect to honeypot</option></select>
+        <input id="m-min" type="number" value="30" min="1" style="width:90px"> <span class="muted">minutes</span>
+        <button class="btn" id="m-go">Apply</button><span id="m-res" class="muted"></span>
+      </div>
+    </div>
+    <div class="card"><h3>Contained IP addresses</h3>
+      <table><thead><tr><th>IP</th><th>Mode</th><th>Reason</th><th>Since</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody id="t-blocked"></tbody></table>
+    </div>
+  </section>
+
+  <!-- ============ HONEYPOT ============ -->
+  <section class="view" id="v-honeypot">
+    <div class="grid kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="card kpi vio"><div class="v" id="h-events">0</div><div class="l">Events captured</div></div>
+      <div class="card kpi bad"><div class="v" id="h-ips">0</div><div class="l">Unique attacker IPs</div></div>
+      <div class="card kpi warn"><div class="v" id="h-creds">0</div><div class="l">Credential pairs tried</div></div>
+      <div class="card kpi"><div class="v" id="h-svc" style="font-size:15px;padding-top:10px">–</div><div class="l">Decoy services</div></div>
+    </div>
+    <div class="grid half" style="margin-top:14px">
+      <div class="card"><h3>Credentials attackers tried</h3><table><thead><tr><th>Username</th><th>Password</th><th>Tries</th></tr></thead><tbody id="t-creds"></tbody></table></div>
+      <div class="card"><h3>Activity by service</h3><div class="chart-box"><canvas id="c-hp"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Attack intelligence log</h3>
+      <div class="scroll"><table><thead><tr><th>Time</th><th>Source</th><th>Service</th><th>Event</th><th>Username</th><th>Password</th><th>Data</th></tr></thead><tbody id="t-hp"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ============ MODEL ============ -->
+  <section class="view" id="v-model">
+    <div class="grid kpis" id="m-kpis"></div>
+    <div class="grid half" style="margin-top:14px">
+      <div class="card"><h3>Per-class performance (test set)</h3><table class="metric-table"><thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead><tbody id="t-perclass"></tbody></table></div>
+      <div class="card"><h3>CNN-LSTM vs baseline</h3><table class="metric-table"><thead><tr><th>Model</th><th>Accuracy</th><th>Macro F1</th><th>Detection</th><th>FPR</th></tr></thead><tbody id="t-compare"></tbody></table>
+        <p class="muted" id="m-info" style="margin-top:14px"></p></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Evaluation charts</h3><div class="imgs" id="m-imgs"></div></div>
+  </section>
+</main>
+</div>
+
+<!-- ============ ALERT MODAL ============ -->
+<div class="modal" id="modal"><div class="box">
+  <div class="head"><h2 id="d-title">Alert</h2><span id="d-sev"></span><span style="margin-left:auto"></span>
+    <button class="btn danger sm" id="d-block">Block IP</button><button class="btn ghost sm" id="d-close">Close ✕</button></div>
+  <div class="kv" id="d-kv"></div>
+  <h3 class="muted" style="margin:16px 0 0;font-size:12px;letter-spacing:.7px;text-transform:uppercase">Explainable AI · why was this flagged?</h3>
+  <div class="xai-text" id="d-text">Computing explanation…</div>
+  <div class="grid half"><div><div class="chart-box" style="height:280px"><canvas id="c-xai"></canvas></div></div>
+    <div><table><thead><tr><th>Class</th><th>Probability</th></tr></thead><tbody id="d-probs"></tbody></table>
+    <p class="muted" style="font-size:12px;margin-top:10px">Red bars pushed the model <b>towards</b> this attack class; blue bars pushed it away. Method: <b id="d-method">–</b></p></div></div>
+  <details><summary>All 40 flow features</summary><div class="scroll" style="max-height:300px"><table class="mono" id="d-feat"></table></div></details>
+</div></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body></html>

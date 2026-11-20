@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NDACS · Login</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
+<body><div class="login-wrap"><form class="login" method="post">
+  <div class="brand" style="padding:0"><div class="logo">ND</div><div><b>NDACS</b><small>Network Defense Automated Cyber Synthesizer</small></div></div>
+  <h1>Security Operations Console</h1><p>Sign in to monitor threats and automated responses.</p>
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+  <input name="username" placeholder="Username" autofocus required>
+  <input name="password" type="password" placeholder="Password" required>
+  <button class="btn">Sign in</button>
+</form></div></body></html>
